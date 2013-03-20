@@ -1,0 +1,437 @@
+
+ 
+ 
+;       CALL STROUT('TEXT',1 OR 0)
+;       1 FOR CRLF, 0 FOR NO CRLF
+ 
+        TITLE   STROUT
+        ENTRY   STROUT
+ 
+STROUT: CAIA
+        PUSH    17,EXITC.##
+        MOVEI   2,@(16)
+LP:     MOVE    (2)
+        SKIPE
+        AOJA    2,LP
+        SOJ     2,
+        MOVE    (2)
+        LSH     0,-1
+        MOVNI   3,5
+LPI:    LSHC    0,-7
+        CAME    1,BLK
+        JRST    LAS
+        SETZ    1,
+        AOJL    3,LPI
+LAS:    ADDI    3,6
+        IMULI   3,7
+        ADDI    3,1
+        LSHC    (3)
+        MOVEM   (2)
+        OUTSTR  @(16)
+        MOVE    4,@1(16)
+        IDIVI   4,12
+        SETZB   0,1
+        CAILE   4,5
+        MOVEI   4,5
+LP2:    SOJL    4,LAS1
+        LSH     -7
+        OR      BLK
+        JRST    LP2
+LAS1:   CAIE
+        OUTSTR
+        CAIN    5,
+        POPJ    17,
+        OUTSTR  CRLF
+        POPJ    17,
+BLK:    200000,,0
+CRLF:   64240,,0
+ 
+        PRGEND
+;---------------------------------------
+ 
+        TITLE PAK
+        ENTRY SMAC,CHSMAC
+;SMAC - UNPACKS A 14 BIT BINARY INTEGER FROM 1 OF 5 14 BIT FIELDS
+;OF THE NTH PAIR OF TWO 36 BIT WORDS (RIGHTMOST BIT UNUSED).
+;
+;I=UNPACK(LOC,ARRAY)
+;LOC=NUMBER OF FIELD POSITION IN ARRAY (1 TO 2.5*SIZE OF ARRAY)
+;ARRAY=ADDRESS OF STORAGE ARRAY
+;
+T0=0
+T1=1
+T2=2
+T3=3
+T4=4
+T5=5
+L=16
+P=17
+SMAC:   MOVE    T0,[T2,,SAVACS]
+        BLT     T0,SAVACS+3
+        PUSHJ   P,FNDPAR        ;SET UP INDEX AND REMAINDER
+        MOVN    T5,T5
+        ADDI    T5,^D72
+        MOVE    T2,(T4)         ;GET THE TWO WORDS
+        MOVE    T3,1(T4)
+        ROTC    T2,(T5)         ;ROTATE VALUE LEFT
+        ANDI    T3,37777        ;REMOVE EXTRA BITS
+        MOVE    T0,T3           ;PUT INTO T0
+        MOVE    T1,[SAVACS,,T2]
+        BLT     T1,T5
+        POPJ    P,0
+;
+;CHSMAC - PACKS A 14 BIT BINARY INTEGER INTO 1 OF 5 14 BIT FIELDS
+;OF THE NTH PAIR OF TWO 36 BIT WORDS (RIGHTMOST BIT UNUSED).
+;
+;CALL PACK(LOC,ARRAY,VALUE)
+;LOC=NUMBER OF FIELD POSITION IN ARRAY (1 TO 2.5*SIZE OF ARRAY)
+;ARRAY=ADDRESS OF STORAGE ARRAY
+;VALUE=VALUE TO BE STORED
+;
+CHSMAC: MOVE    T0,[T2,,SAVACS]
+        BLT     T0,SAVACS+3
+        PUSHJ   P,FNDPAR        ;SET UP INDEX AND REMAINDER
+        SETOB   T2,T3           ;SET UP TWO AC MASK
+        TRZ     T3,37777
+        ROTC    T2,(T5)         ;SHIFT MASK
+        ANDM    T2,(T4)         ;AND OUT OLD FIELD VALUE
+        ANDM    T3,1(T4)
+        SETZ    T2,             ;GET VALUE IN TWO ACS
+        MOVE    T3,@2(L)
+        ROTC    T2,(T5)         ;SHIFT NEW VALUE INTO POSITION
+        ORM     T2,(T4)         ;OR IN NEW VALUE
+        ORM     T3,1(T4)
+        MOVE    T0,[SAVACS,,T2]
+        BLT     T0,T5
+        POPJ    P,0
+SAVACS: BLOCK   4
+;
+;FNDPAR - PUTS FIRST INPUT ARG INTO T4 AND THEN CONVERTS T4 INTO
+;A PAIR WORD POINTER AND A FIELD POSITION COUNTER.
+;
+FNDPAR: MOVE    T4,@0(L)        ;GET VALUE OF LOC
+        SUBI    T4,1            ;CONVERT TO NUMBER OF WORD PAIR
+        IDIVI   T4,5            ;REMAINDER IS IN T5
+        ASH     T4,1
+        ADDI    T4,@1(L)        ;ADD ADDRESS OF ARRAY
+        ADDI    T5,1            ;MAKE REMAINDER BETWEEN 1 AND 5 INCL.
+        IMULI   T5,^D14         ;MULTIPLY BY 14
+        MOVN    T5,T5           ;(RIGHT SHIFT)
+        ADDI    T5,^D70
+        POPJ    P,0
+        PRGEND
+ 
+ 
+ 
+;--------------------------------
+        TITLE   IDIST
+        ENTRY   IDIST
+ 
+; COMPUTES DISTANCE BETWEEN ANY TWO POINTS ON THE MAP
+ 
+T0=0
+T1=1
+Y1=2
+X1=3
+Y2=4
+X2=5
+ 
+SAVACS: BLOCK   4
+ 
+IDIST:  MOVE    T1,[2,,SAVACS]
+        BLT     T1,SAVACS+3     ;SAVE ACS
+ 
+        MOVE    Y1,@0(16)
+        MOVE    Y2,@1(16)       ;GET THE TWO LOCATIONS
+ 
+        SUBI    Y1,1
+        SUBI    Y2,1            ;REMEMBER THAT 100 IS A COLUMN, NOT A ROW
+ 
+        IDIVI   Y1,^D100
+        IDIVI   Y2,^D100        ;SEPARATE INTO X AND Y
+ 
+        SUB     Y1,Y2
+        SUB     X1,X2           ;CONVERT TO DELTA X AND DELTA Y
+ 
+        MOVM    Y1,Y1
+        MOVM    X1,X1           ;TAKE ABSOLUTE VALUE
+ 
+        MOVE    T0,Y1
+        CAMGE   Y1,X1
+        MOVE    T0,X1
+ 
+        MOVS    T1,[2,,SAVACS]
+        BLT     T1,5            ;RESTORE ACS
+ 
+        POPJ    17,
+ 
+        PRGEND
+ 
+ 
+ 
+    ;----------------------------------
+ 
+;AMAPP AND CHAMAP PACK AND UNPACK EMPIRE MAPS
+ 
+        TITLE   A.MAC
+        ENTRY   AMAPP, CHAMAP
+ 
+; A=AMAPP(MAPP,Z6)
+; A= OBJECT RESIDING AT LOCATION Z6
+; Z6= LOCATION ON MAP
+; MAPP= WHICH ONE OF THREE MAPS YOU WANT TO LOOK AT,
+;      0: ENEMY MAP
+;      1: REFERENCE MAP
+;      2: PLAYER MAP
+; EACH MAP HAS 6000 LOCATIONS IN IT, 7 ARE STORED PER WORD
+; IN 5-BIT BYTES. THERE ARE 858 WORDS PER MAP.
+ 
+T0=0
+T1=1
+Z6=2
+POINTR=3
+MAPP=4
+VARSTK=16
+P=17
+ 
+POIN:   POINT   5,(Z6),4        ;7 BYTE POINTERS, ONE FOR EACH MAP LOC IN A WORD
+        POINT   5,(Z6),9
+        POINT   5,(Z6),14
+        POINT   5,(Z6),19
+        POINT   5,(Z6),24
+        POINT   5,(Z6),29
+        POINT   5,(Z6),34
+ 
+SYMBOL: ASCII/     /
+        ASCII/.    /
+        ASCII/+    /
+        ASCII/1    /
+        ASCII/A    /
+        ASCII/5    /
+        ASCII/O    /
+        ASCII/X    /
+        ASCII/S    /
+        ASCII/4    /
+        ASCII/T    /
+        ASCII/D    /
+        ASCII/3    /
+        ASCII/F    /
+        ASCII/2    /
+        ASCII/6    /
+        ASCII/R    /
+        ASCII/7    /
+        ASCII/C    /
+        ASCII/8    /
+        ASCII/B    /
+        ASCII/*    /
+ 
+.COMMON MAP     [^D2875]                ;VARIABLES
+ 
+SYMNUM=.-SYMBOL ;NUMBER OF ENTRIES IN THIS TABLE
+ 
+ 
+SAVACS: BLOCK 3
+ 
+AMAPP:  MOVE    T1,[2,,SAVACS]
+        BLT     T1,SAVACS+2     ;SAVE ACS
+ 
+        MOVE    Z6,@1(VARSTK)
+        SUBI    Z6,1            ;Z6=(Z6-1)/7, REMAINDER GOES IN POINTR
+        IDIVI   Z6,7
+ 
+        MOVE    MAPP,@0(VARSTK)
+        IMULI   MAPP,^D858      ;MAPP=MAPP*858
+ 
+        ADD     Z6,MAPP         ;Z6=Z6+MAPP+ADDRESS OF ARRAY
+        ADDI    Z6,MAP
+ 
+        LDB     T1,POIN(POINTR)
+        MOVE    T0,SYMBOL(T1)   ;GET THE SYMBOL RELATING TO T0
+ 
+        MOVS    T1,[2,,SAVACS]
+        BLT     T1,4            ;RESTORE ACS
+        POPJ    P,0
+ 
+; CALLING SEQUENCE:     CALL CHAMAP(Z6,TYPE,MAPP)
+; Z6, MAPP ARE THE SAME AS BEFORE
+; TYPE=THE CHARACTER YOU WISH TO INSERT INTO MAP LOCATION Z6
+ 
+CHAMAP: MOVE    T0,[2,,SAVACS]
+        BLT     T0,SAVACS+2             ;SAVE ACCUMULATORS
+ 
+        MOVE    T0,@1(VARSTK)
+        MOVSI   POINTR,-SYMNUM  ;GET -SYMNUM,,0 IN POINTR
+ 
+LOOP:   CAME    T0,SYMBOL(POINTR)
+        AOBJN   POINTR,LOOP
+        TLZE    POINTR,777777   ;SKIP IF DIDN'T FIND A MATCH
+          JRST  DONE            ;GOT IT
+        OUTSTR  [ASCIZ/?ERROR IN CHAMAP: /]
+        SETZ    1,
+        OUTSTR  0
+        EXIT
+DONE:   MOVE    T0,POINTR
+ 
+        MOVE    Z6,@0(VARSTK)
+        SUBI    Z6,1
+        IDIVI   Z6,7
+ 
+        MOVE    MAPP,@2(VARSTK)
+        IMULI   MAPP,^D858
+ 
+        ADD     Z6,MAPP
+        ADDI    Z6,MAP
+ 
+        DPB     T0,POIN(POINTR)
+ 
+        MOVS    T0,[2,,SAVACS]
+        BLT     T0,4            ;RESTORE ACS
+        POPJ    P,
+ 
+        PRGEND
+;------------------------------------
+ 
+        TITLE   SET
+        ENTRY   SET
+ 
+; THIS SUBROUTINE SETS AN ARRAY TO ALL ONE VALUE SPECIFIED BY ARG3
+; CALLING SEQUENCE:  CALL SET(ARRAY,DIM,SET)
+; ARRAY: THE ARRAY THAT YOU WANT CLEARED
+; DIM: THE SIZE IN WORDS OF THE ARRAY
+; SET: THE VALUE THAT YOU WANT THE ARRAY SET TO
+ 
+SET:    MOVEI   0,@0(16)        ;MOVE ADDRESS OF ARRAY INTO AC0
+        MOVE    1,@2(16)        ;MOVE VALUE OF SET INTO AC1
+        MOVEM   1,@0            ;SET FIRST VALUE OF ARRAY TO SET
+        HRRZ    1,0             ;SET RIGHT OF 1 TO ARRAY
+        HRL     0,0             ;NOW RIGHT AND LEFT OF AC0 CONTAIN ARRAY
+        ADDI    0,1             ; AC0=[ARRAY,,ARRAY+1]
+        ADD     1,@1(16)        ; AC1=[0,,ARRAY+DIM]
+        SUBI    1,1             ; AC1=[0,,ARRAY+DIM-1]=FINAL ADDRESS OF ARRAY
+        BLT     0,(1)           ;SET THE ARRAY TO SET
+        POPJ    17,0
+ 
+        PRGEND
+;------------------------------------------------
+        TITLE D1
+        ENTRY D1F,D1M
+;CALLING SEQUENCE: D1F(Z6)
+;D1M IS FOR MACRO ROUTINES CALLING IT
+;MAP LOCATIONS ARE PACKED 20 TO A WORD, IN POWERS OF 3
+;FAST UNPACKING ROUTINES FOR THE D MAP
+ 
+        RADIX   ^D10            ;OCTAL SUCKS
+        .COMMON MAP[2574+300+1]
+        D=MAP+2574              ;START OF D ARRAY
+ 
+        T0=0
+        T1=1
+        T2=2
+        T3=3
+        V=14
+        P=15
+ 
+D1F::   MOVE    T1,@0(V)        ;GET MAP LOCATION
+D1M::   PUSH    P,T2            ;SAVE AC 2
+        SUBI    T1,1            ;CONVERT INDEX TO 0-5999 FROM 1-6000
+        IDIVI   T1,20           ;20 LOCATIONS PER WORD
+        MOVE    T0,D(T1)        ;GET WORD ASSOCIATED WITH LOCATION
+        IDIV    T0,POW3+1(T2)   ;DIVIDE AWAY EXTRA JUNK ABOVE WHAT WE WANT
+        IDIV    T1,POW3(T2)     ;DIVIDE OFF ANYTHING BELOW WHAT WE WANT
+        MOVE    T0,ASCI(T1)     ;GET ASCII CHAR ASSOCIATED WITH IT
+        POP     P,T2            ;RESTORE AC 2
+        POPJ    P,              ;RETURN
+ 
+ASCI:   ASCII   /.    /
+        ASCII   /+    /
+        ASCII   /*    /
+POW3:
+POWER3=1
+REPEAT 20,<
+POWER3
+POWER3=POWER3*3         ;GENERATE TABLE OF POWERS OF 3
+>
+        PRGEND
+;----------------------------------------------------------
+        RADIX   8
+        TITLE   ORDER
+        ENTRY   ORDER,ORDERM
+;FAST ROUTINES EQUIVALENT TO FORTRAN ORDER(Z6)
+        T0=0
+        T1=1
+        V=16
+        P=17
+        RADIX   ^D10
+ 
+ORDER::
+        MOVE    T1,@0(V)
+ORDERM::
+        CAIG    T1,100
+        JRST    YES
+        CAILE   T1,5900
+        JRST    YES
+        MOVE    T0,T1
+        PUSH    P,2             ;SAVE AC 2
+        IDIVI   T1,100
+        POP     P,2             ;THE IDIVI DESTROYED AC 2
+        IMULI   T1,100
+        CAMN    T1,T0
+        JRST    YES
+        ADDI    T1,1
+        CAMN    T1,T0
+        JRST    YES
+        MOVEI   T0,0
+        POPJ    P,
+YES:    MOVEI   T0,1
+        POPJ    P,
+        PRGEND
+;-------------------------------------------------
+        RADIX   8
+        TITLE   MOV
+        ENTRY   MOV
+;MACRO VERSION OF MOV SUBROUTINE
+;CALLING SEQUENCE: MOV(BEG,END)
+;VALUE RETURNED IS THE DIRECTION IN WHICH TO GO TO GET FROM BEG TO END
+ 
+        T0=0
+        T1=1
+        T2=2
+        T3=3
+        V=16
+        P=17
+ 
+MOV::   PUSH    P,T2
+        PUSH    P,T3
+        MOVE    T0,@0(16)
+        MOVE    T2,@1(16)
+        SUBI    T0,1
+        SUBI    T2,1
+        IDIVI   T0,^D100
+        IDIVI   T2,^D100
+        SUB     T2,T0
+        SUB     T3,T1
+        JUMPGE  T2,NOTL
+        MOVEI   T0,4
+        SKIPLE  ,T3
+        MOVEI   T0,2
+        SKIPN   ,T3
+        MOVEI   T0,3
+        JRST    DONE
+NOTL:   JUMPE   T2,NOTG
+        MOVEI   T0,6
+        SKIPLE  ,T3
+        MOVEI   T0,^D8
+        SKIPN   ,T3
+        MOVEI   T0,7
+        JRST    DONE
+NOTG:   MOVEI   T0,5
+        SKIPLE  ,T3
+        MOVEI   T0,1
+        SKIPN   ,T3
+        MOVEI   T0,0
+DONE:   POP     P,T3
+        POP     P,T2
+        POPJ    P,
+        XPUNGE
+        END
+

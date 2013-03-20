@@ -1,0 +1,41 @@
+
+        TITLE   HELP
+        ENTRY   HELP
+ 
+        T0=0
+        T1=1
+        P=17
+ 
+HLPFIL: 5
+        ^D29970,,'WBG'-202020
+        'EMPHLP'
+        'HLP   '
+        BLOCK   2
+ 
+HELP:   OPEN    11,[400000,,17
+                    'ALL   '
+                    Z]
+          POPJ  P,
+        LOOKUP  11,HLPFIL
+          JRST  DONE
+        MOVE    T0,.JBFF##
+        MOVE    T1,T0
+        ADD     T1,HLPFIL+5
+        CORE    T1,
+          HALT  .
+        SOJ     T0,
+        MOVN    T1,HLPFIL+5
+        HRL     T0,T1
+        SETZ    T1,
+        INPUT   11,     T0
+        OUTSTR  @.JBFF##
+        MOVE    T0,.JBFF##
+        CORE    T0,
+          JFCL
+DONE:   RELEAS  11,
+        POPJ    P,
+ 
+        END
+
+
+.

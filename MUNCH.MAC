@@ -1,0 +1,36 @@
+
+        TITLE   MUNCH
+        ENTRY   ZEROST,EXITER
+ 
+.JBAPR=^O125
+ 
+ZEROST: CLEARM  120                     ;ZERO START ADDRESS
+ 
+        MOVEI   TRPBLK
+        MOVEM   .JBAPR
+ 
+        POPJ    17,
+ 
+TRPBLK: XWD     4,INTRTN
+        XWD     400000,1B34!1B30
+        0
+        0
+ 
+INTRTN: PUSH    17,TRPBLK+2
+        SETZM   TRPBLK+2
+        PUSH    17,0                    ;SAVE AC 0
+        MOVE    0,TRPBLK+3
+        TLNE    2
+        JRST    EXITER
+        TLNN    40
+        HALT    .
+        POP     17,0
+        POPJ    17,                     ;GO BACK WHERE YOU CAME FROM
+ 
+EXITER: MOVEI   0,[EXP 'SYS   ','MONSIM',0,0,0,0]
+        RUN     200000
+        HALT    .
+        END
+
+
+.

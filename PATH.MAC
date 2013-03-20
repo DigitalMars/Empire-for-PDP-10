@@ -1,0 +1,335 @@
+
+        TITLE   PATH
+        ENTRY   PATH
+T0=0
+T1=1
+OK=10           ;TEMP DEFINITIONS
+ 
+;CALLING SEQUENCE:      MOVE=PATH(BEG,END,DIR,OK,FLAG)
+;THIS ROUTINE COMPUTES A PATH FROM BEG TO END
+ 
+;FORTRAN COMMON BLOCKS NEEDED:
+.COMMON IARROW  [^D10]                  ;DIRECTIONS
+.COMMON G2      [^D100]                 ;ARRAY WHICH BACKUP POINTS INTO
+.COMMON TEST2   [^D2]                   ;REPORT SUCCESS OR FAILURE HERE
+ 
+ 
+;HERE ARE THE ARGUMENTS FOR THE FIRST MACRO
+        ARG1:   BLOCK   1
+        ARG2:   BLOCK   2
+                -2,,0
+        AP:     ARG1
+                ARG2
+ 
+;MACRO TO CALL FORTRAN SUBROUTINE WITH 2 ARGUMENTS
+; IN ACCUMULATORS.
+DEFINE  CALLF2  (AC1,AC2,SUBROU)
+<
+        MOVEM   AC1,ARG1                ;PUT FIRST ACC IN FIRST ARG
+        MOVEM   AC2,ARG2                ;SET UP SECOND ARG
+        MOVEI   16,AP                   ;SET UP VARIABLE POINTER
+        PUSHJ   17,SUBROU               ;CALL SUBROUTINE
+>
+ 
+;HERE IS THE ARGUMENT BLOCK FOR THE SECOND MACRO
+        ARG3:   BLOCK   1
+                -1,,0
+        AP2:    ARG3
+ 
+;MACRO TO CALL FORTRAN SUBROUTINE WITH 1 ARG IN AC
+DEFINE  CALLF1  (AC,SUBROU)
+<
+        MOVEM   AC,ARG3
+        MOVEI   16,AP2
+        PUSHJ   P,SUBROU
+>
+ 
+;MACRO TO CALL FORTRAN MOV SUBROUTINE
+DEFINE  MOOV    (START,FINISH,RETVAL)
+<
+        MOVE    0,START
+        MOVE    1,FINISH
+        CALLF2  (0,1,MOV##)
+        MOVEM   0,RETVAL
+>
+ 
+ 
+;MACRO TO COMPUTE LOC2=LOC+IARROW(MOVE3)
+DEFINE  NEWZ6   (LOC2,LOC,MOVE3)
+<
+        MOVE    LOC2,IARROW(MOVE3)
+        ADD     LOC2,LOC
+>
+ 
+;MACRO TO GET AC=A(MAP,LOC)
+DEFINE  AMAP    (VAR,LOC,MAP)
+<
+        MOVEI   T0,MAP
+        MOVE    T1,LOC
+        CALLF2 (T0,T1,AMAPP##)
+        MOVEM   T0,VAR
+>
+ 
+;MACRO TO SEE IF AC AT LOC IS SUITABLE
+DEFINE  COMPARE (AC,LOC,RETADR)
+<
+        CAMN    AC,0(OK)
+        JRST    RETADR
+;       MOVE    T0,LOC
+;       CALLF1  (T0,D1##)
+        MOVE    T1,LOC
+        PUSHJ   P,D1M##                         ;GET D1(LOC)
+        CAMN    T0,0(OK)                        ;OK IF D1(LOC)=OK(1)
+        JRST    RETADR                          ;JUMP OUT
+        CAMN    AC,1(OK)
+        JRST    RETADR
+        CAMN    AC,2(OK)
+        JRST    RETADR
+        CAMN    AC,3(OK)
+        JRST    RETADR
+        CAMN    AC,4(OK)
+        JRST    RETADR
+>
+ 
+ 
+;ACCUMULATOR DEFINITIONS:
+ 
+        T0=0                    ;RANDOM ACCUMULATOR
+        T1=1                    ;RANDOM ACCUMULATOR
+        INDEX=2                 ;LOOP INDEX
+        FLAG=3                  ;FLAG TO AND FROM CALLING ROUTINE
+        MOVNUM=4                ;# OF TRIES ELAPSED
+        MOOVE=5                 ;DIRECTION OF MOVE
+        Z6=6                    ;CURRENT LOCATION
+        Z62=7                   ;TRIAL Z6
+        OK=10                   ;ADDRESS OF START OF OK ARRAY
+        BEG=11                  ;STARTING POSITION
+        END=12                  ;ENDING POSITION
+        AB=13                   ;VALUE OF MAP AT A POINT
+        BACKUP=14               ;POINTER TO BACKUP ARRAY
+        LOPMAX=15               ;=MOV1+DIR*7
+        VARSTK=16               ;FORTRAN VARIABLE POINTER
+        P=17                    ;STACK POINTER
+ 
+ 
+;MORE RANDOM VARIABLES:
+ 
+DIR:    BLOCK   1               ;DIRECTION TO FOLLOW ON SHORE
+MAXMVE: BLOCK   1               ;MAXIMUM # OF TRIES
+SAVACS: BLOCK   ^D12            ;SAVE ACCUMULATORS HERE
+BEGDIR: BLOCK   1               ;STARTING DIRECTION
+BAKADR: BLOCK   1               ;RETURN ADDRESS FROM MACRO COMPARE
+MOVE1:  BLOCK   1               ;STORE MOVE A MOMENT
+MOV1:   BLOCK   1               ;  "    "   "   "
+MOVE2:  BLOCK   1               ;  "    "   "   "
+DIR3:   BLOCK   1               ;=DIR*3
+ 
+PATH:   MOVE    T1,[2,,SAVACS]
+        BLT     T1,SAVACS+^D11          ;SAVE ACS 2-15
+ 
+        SETZ    BACKUP,                 ;INITIALIZE POINTER
+ 
+        MOVE    T0,@2(16)
+        MOVEM   T0,DIR                  ;GET AND STORE DIR
+ 
+        MOVEM   T0,BEGDIR               ;STORE BEGDIR
+ 
+        MOVEI   FLAG,@4(16)             ;GET ADDRESS OF FLAG
+ 
+        MOVEI   OK,@3(16)               ;GET ADDRESS OF OK ARRAY
+ 
+        IMULI   T0,3
+        MOVEM   T0,DIR3                 ;STORE DIR3
+ 
+        MOVE    T0,@0(16)               ;GET FIRST ARG
+        MOVE    T1,@1(16)               ;GET SECOND ARG
+        MOVE    BEG,T0                  ;INITIALIZE BEG
+        MOVE    END,T1                  ;INITIALIZE END
+        MOVE    Z6,BEG                  ;INITIALIZE Z6
+        CALLF2  (BEG,END,IDIST##)       ;COMPUTE DISTANCE BETWEEN BEG,END
+        IMULI   T0,2                    ;MUL DISTANCE*2
+        ADDI    T0,1                    ;ADD 1
+        MOVEM   T0,MAXMVE               ;MAXMVE=2*IDIST(BEG,END)+1
+        MOVE    MOVNUM,T0               ;INITIALIZE MOVNUM TO MAXMVE
+ 
+        PUSHJ   P,G20                   ;ZERO G2 ARRAY
+ 
+STRGHT: MOOV    (Z6,END,MOOVE)
+        NEWZ6   (Z62,Z6,MOOVE)
+ 
+        AMAP    (AB,Z62,0)
+ 
+        COMPARE (AB,Z62,OKSET)          ;SEE IF MOVE IS OK
+        JRST    FOLSHR                  ;GIVE UP AND FOLLOW THE SHORE
+ 
+OKSET:  MOVEI   T0,STRGHT
+        MOVEM   T0,BAKADR               ;STORE RETURN ADDRESS
+ 
+;.................................................................
+OKMOVE: CAMN    Z6,BEG
+        MOVEM   MOOVE,MOVE1             ;IF(Z6==BEG) MOVE1=MOOVE
+ 
+        MOVE    Z6,Z62                  ;Z6 IS NOW NEW POSITION
+ 
+        MOVEI   T0,^D1000
+        CAMG    T0,@FLAG
+        PUSHJ   P,TEST                  ;IF FLAG>=1000 CALL TEST4
+ 
+        CAMN    Z6,END
+        JRST    SUCCES                  ;IF Z6==END, WE ARE DONE
+ 
+DOMORE: SOJE    MOVNUM,TRYDIR           ;TRY NEW DIR IF MOVNUM=0
+        JRST    @BAKADR                 ;CONTINUE ON MUNCHING
+;....................................................
+ 
+TRYDIR: MOVNS   ,DIR3                   ;NEGATE DIR3
+        MOVNS   T1,DIR                  ;NEGATE DIR
+ 
+        CAMN    T1,BEGDIR
+        JRST    FAILUR                  ;IF DIR=BEGDIR, FAILURE
+ 
+        MOVE    MOVNUM,MAXMVE           ;RESET MOVNUM
+        SETZ    BACKUP,                 ;ZERO BACKUP POINTER
+        MOVE    Z6,BEG                  ;SET Z6 BACK TO START
+        PUSHJ   P,G20                   ;ZERO BACKUP ARRAY
+        JRST    STRGHT                  ;START OVER
+ 
+SUCCES: MOVE    T0,MOVE1                ;PASS MOVE1 TO CALLING PROG
+        AOS     T1,TEST2                ;ADD 1 TO SUCCESS VARIABLE
+        MOVEI   T1,1
+        MOVEM   T1,@FLAG                ;SET FLAG TO 1
+        JRST    RETURN
+ 
+FOLSHR: MOVE    T0,MOOVE
+        SUB     T0,DIR3
+        PUSHJ   P,CORR##
+        MOVEM   T0,MOV1                 ;MOV1=CORR(MOVE-DIR*3)
+ 
+        MOVE    T1,T0                   ;SO WE CAN INDEX BY MOV1
+        NEWZ6   (Z62,Z6,T1)             ;NOTE T1=MOV1
+ 
+        AMAP    (AB,Z62,0)
+ 
+        COMPARE (AB,Z62,SIDEOK)
+        SKIPA
+SIDEOK: MOVEM   MOOVE,MOV1              ;INITIAL CONTACT WITH SHORE
+ 
+STFOL:  MOVE    INDEX,MOV1
+        MOVE    T0,DIR
+        IMULI   T0,^D8
+        ADD     T0,MOV1
+        MOVEM   T0,LOPMAX               ;DO INDEX=MOV1,MOV1+7*DIR,DIR
+                                        ;LOPMAX=FINAL LOOP INDEX VALUE+DIR
+LOOP:   MOVE    T0,INDEX
+        PUSHJ   P,CORR##
+        MOVE    MOOVE,T0                ;MOVE=CORR(INDEX)
+ 
+        NEWZ6   (Z62,Z6,MOOVE)
+ 
+        MOVE    T1,Z62                  ;SET UP ARGUMENT FOR ORDERM
+        PUSHJ   P,ORDERM##              ;IF ORDER=0, WE ARE NOT ON EDGE
+;       CALLF1  (Z62,ORDER##)
+        JUMPN   T0,EOLOOP               ;IF ON EDGE, TRY A NEW MOVE
+ 
+        AMAP    (AB,Z62,0)
+        COMPARE (AB,Z62,OKSET2)         ;IS IT A GOOD MOVE?
+        JRST    EOLOOP
+ 
+OKSET2: MOVEI   T0,CHKNXT
+        MOVEM   T0,BAKADR               ;STORE RETURN ADDRESS
+        JRST    OKMOVE                  ;MUNCH NOW THAT THAT MOVE IS OK
+ 
+EOLOOP: ADD     INDEX,DIR               ;INCREMENT LOOP INDEX
+        CAME    INDEX,LOPMAX            ;IF INDEX IS EXPIRED
+        JRST    LOOP                    ;IF NOT CONTINUE LOOPING
+ 
+FAILUR: MOOV    (BEG,END,T0)
+        AOS     ,TEST2+1                ;INCREMENT FAILURE COUNT
+        CLEARM  ,@FLAG                  ;SET FLAG TO 0 INDICATING FAILURE
+ 
+RETURN: MOVS    T1,[2,,SAVACS]
+        BLT     T1,15
+        POPJ    P,                      ;RESTORE ACS AND RETURN
+ 
+CHKNXT: MOOV    (Z6,END,T1)
+        NEWZ6   (Z62,Z6,T1)
+        AMAP    (AB,Z62,0)
+        COMPARE (AB,Z62,STBACK)
+        JRST    FOLSHR                  ;FOLLOW SHORE
+ 
+STBACK: MOVE    INDEX,BACKUP            ;SET UP LOOP INDEX
+ 
+LOOP2:  CAMN    Z6,G2(INDEX)            ;SEE IF Z6 IS IN ARRAY
+         JRST   FOLSHR                  ;IF IT IS, FOLLOW THE SHORE
+        SOJGE   INDEX,LOOP2             ;CONTINUE TILL INDEX GOES NEGATIVE
+ 
+        MOVEM   Z6,G2(BACKUP)           ;PUT Z6 INTO ARRAY AT TOP
+        AOJ     BACKUP,                 ;INCREMENT POINTER TO TOP OF ARRAY
+ 
+        CAIL    BACKUP,^D100            ;SEE IF ARRAY HAS OVERFLOWED
+         JRST   TRYDIR                  ;IF IT HAS, TRY A NEW DIRECTION
+        JRST    STRGHT                  ;GO STRAIGHT NOW
+ 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;SUBROUTINE TO CLEAR THE G2 ARRAY
+G20:
+        MOVEI   16,AP3                  ;SET UP FORTRAN ARG POINTER
+        PUSHJ   P,SET##                 ;JUMP TO SET SUBROUTINE
+        POPJ    P,                      ;RETURN
+ 
+ARG4:   ^D100           ;# OF ELEMENTS IN ARRAY
+ARG5:   0               ;# TO SET ARRAY ELEMENTS TO
+        -3,,0           ;# OF ARGUMENTS
+AP3:    G2
+        ARG4
+        ARG5            ;ADDRESSES OF ARGUMENTS
+ 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;SUBROUTINE TO CALL TEST4(Z6,FLAG,DIR,MOVE1,MOVNUM,BEG,END,G2,FLAG2)
+ 
+ARGZ6:  BLOCK   1
+ARGMVN: BLOCK   1
+ARGBEG: BLOCK   1
+ARGEND: BLOCK   1
+SWITCH: BLOCK   1
+        -9,,0
+ARGBLK: ARGZ6
+        BLOCK   1               ;RESERVE SPOT FOR FLAG ADDRESS
+        DIR
+        MOVE1
+        ARGMVN
+        ARGBEG
+        ARGEND
+        G2
+        SWITCH
+ 
+SAVAC2: BLOCK   ^D12
+ 
+TEST:
+        MOVE    T1,[2,,SAVAC2]
+        BLT     T1,SAVAC2+^D11          ;SAVE ACS
+ 
+        MOVEM   Z6,ARGZ6                ;SET UP Z6 ARG
+        MOVEM   FLAG,ARGBLK+1           ;SET UP POINTER TO FLAG
+        MOVEM   MOVNUM,ARGMVN           ;SET UP MOVNUM ARG
+        MOVEM   BACKUP,ARGBEG           ;SET UP BEG ARG
+        MOVE    T0,DIR3
+        MOVEM   T0,ARGEND               ;SET UP END ARG
+        MOVE    T0,[ASCII /MOV  /]
+        MOVE    T1,BAKADR
+        CAIN    T1,CHKNXT
+        MOVE    T0,[ASCII /SHORE/]
+        MOVEM   T0,SWITCH               ;SET UP SWITCH ARG
+        MOVEI   16,ARGBLK               ;SET UP ARG POINTER
+        PUSHJ   P,TEST4##               ;CALL TEST4
+ 
+        MOVS    T1,[2,,SAVAC2]
+        BLT     T1,15
+        POPJ    P,                      ;RETURN
+ 
+ 
+        XPUNGE
+        END
+
+
+.

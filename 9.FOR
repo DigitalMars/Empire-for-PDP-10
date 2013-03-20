@@ -1,0 +1,275 @@
+
+ 
+C       SUBPROGRAM COLLECTION 9
+        SUBROUTINE FGHT(Z6,H1,H2,OWN1,OWN2)
+        INCLUDE 'COMMON.EMP/NOLIST'
+        IF((OWN2<'A').OR.(OWN2>'T')) GOTO 200
+        IF(MODE==1) CALL CURSOR(100,KURSOR)
+        CALL IDEN(OWN2); CALL STROUT('IS UNDER ATTACK AT',10)
+        CALL DECPRT(Z6)
+        CALL STROUT('',51)
+  200   CALL CURSOR(200)
+        S1=1
+        S2=1
+        IF((OWN1=='S').OR.(OWN1=='4')) S1=3
+        IF((OWN2=='S').OR.(OWN2=='4')) S2=3
+        IF(H2==0) GOTO 700
+  702   IF(RAN(C1)<=.5) GOTO700
+        H1=H1-S2
+        H=H2
+        IF(H1>0) GOTO702
+        OWN=OWN1
+        CALL IDEN(OWN)
+        OWN=OWN2
+        CALL STROUT('DESTROYED,',10)
+        GOTO 799
+  700 H2=H2-S1
+        H=H1
+        IF(H2>0) GOTO702
+        OWN=OWN2
+        CALL IDEN(OWN)
+        OWN=OWN1
+        CALL STROUT('DESTROYED,',10)
+  799   CALL IDEN(OWN)
+        CALL STROUT('HAS',10); CALL DECPRT(H)
+        CALL STROUT(' HITS LEFT.',0)
+        IF(MODE==0) CALL STROUT('',1)
+        RETURN
+        END
+ 
+ 
+        SUBROUTINE SENSOR(Z6)
+        INTEGER Z6,ARROW(1:9)
+        COMMON/MODE/MODE,KURSOR,JECTOR ,ISEC
+        DATA (ARROW(J),J=1,9)/-101,-100,-99,-1,0,1,99,100,101/
+        IBEFOR=-100
+        DO 100 I=1,9
+        I1=Z6+ARROW(I)
+        AB=A(1,I1)
+        IF(AB==A(2,I1)) GOTO 100
+        CALL CHANGE(I1,AB,2)
+        IF(JECTOR==-1) GOTO 100
+        IF(ISEC==-1) GOTO 100
+        LINE=KLINE(KI,ISEC)
+        IY=(I1-1)/100*100
+        IX=I1-IY
+        IF((IY<LINE).OR.(IY>LINE+1900).OR.(IX<=KI).OR.(IX>KI+70))GOTO100
+        I1=I1-LINE-KI
+        IF(IBEFOR+1#I1) CALL CURSOR(I1+300,KURSOR)
+        IBEFOR=I1
+        CALL OUTCHR(LSH(AB,-29))
+  100   CONTINUE
+        RETURN
+        END
+ 
+ 
+ 
+        SUBROUTINE MVE(OWN1,MDATE,NUM,N2,Z6,Z7,DISAS,JURSOR)
+        IMPLICIT INTEGER(A-Z)
+        DIMENSION KBTBL(9),CMYTBL(9),KBFUDG(9),COMMAND(20)
+        REAL EDGER,RAN,C1
+        LOGICAL PASS
+        COMMON/PASS/PASS
+        COMMON/IARROW/IARROW(0:9)
+        COMMON/MODE/MODE,KURSOR,JECTOR,ISEC
+        COMMON/X/X(70)
+        COMMON/MISC1/TARGET(70),AR2S(500),RANGE(200),RANG(200)
+        COMMON/CITY/FOUND(70),OWNER(70),PHASE(70)
+        DATA KBTBL/'Q','W','E','A','D','Z','X','C',' '/
+        DATA CMYTBL/6104,6103,6102,6105,6101,6106,6107,6108,0/
+        DATA KBFUDG/-101,-100,-99,-1,1,99,100,101,0/
+        DATA COMMAND/'S','R','I','K','O','L','F','G','P','H',
+     &              'Y','T','V','J','?',0,0,'U','N','+'/
+ 
+        DISAS=0
+  300   CALL ECHOFF
+        CALL SECTOR(2)
+        CALL CURSOR(JURSOR)
+        CALL OUTCHR(BELL)
+  301   E=GETCHX(E)
+        CALL ECHOON
+ 
+* MOVEMENT
+        Z7=Z6
+        DO 60 I=1,9
+        IND=I
+   60   IF (E==KBTBL(IND)) GOTO 61
+        GOTO 62                 !THEREFORE COMMAND IS NOT A MOVE
+   61   Z6=Z6+KBFUDG(IND)
+        GOTO 100
+ 
+   62   END=15
+        IF(PASS) END=20
+        DO 302 I=1,END
+  302   IF(E==COMMAND(I)) GOTO 303
+        I=0
+  303   GOTO (1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,304,304,18,19,10) I
+  304   GOTO 300
+ 
+*S: PUT TO SLEEP
+    1   IF(A(1,Z6)=='O') RETURN
+        CALL CMYCOD(NUM,50)
+        RETURN
+ 
+*R: RANDOM MOVEMENT
+    2   IF(OWN1#'A') GOTO 300           !ONLY FOR ARMIES
+        CALL CMYCOD(NUM,100)
+        Z6=Z6+IARROW(JIGGLE(Z6,NUM))
+        RETURN
+ 
+*I: PUT IN DIRECTIONAL STASIS
+    3   CALL ECHOFF
+        CALL OUTCHR(BELL)
+        E=GETCHX(E)
+        CALL ECHOON
+        DO 70 I=1,9
+        IND=I
+        IF (E == KBTBL(IND)) GOTO 21
+   70   CONTINUE
+        GOTO 22
+21      CALL CMYCOD(NUM,CMYTBL(IND))
+22      IF(MYCODE(NUM)==0) GOTO 300
+        DISAS=-2
+        RETURN
+ 
+*K: KILL STASIS NUMBERS ON TRANSPORT/CARRIER
+    4   IF(OWN1#'T') GOTO 4093
+        DO 4094 J=1,500
+ 4094   IF(S(J)==Z6) CALL CMYCOD(J,0)
+        GOTO 300
+ 4093   IF(OWN1#'C') GOTO 300
+        DO 4095 J=501,700
+ 4095   IF(S(J)==Z6) CALL CMYCOD(J,0)
+        GOTO 300
+ 
+*O: CONCENTRATIONS
+    5   CONTINUE
+        GOTO 600
+ 
+*L: SET UP CITY STASIS NUMBERS
+   6    CALL DIREC
+        GOTO 600
+ 
+*F:
+    7   CALL DIREC
+        GOTO 600
+ 
+*G: PUT T/C TO SLEEP
+    8   IF((OWN1#'T').AND.(OWN1#'C')) GOTO 300
+        CALL CMYCOD(NUM,9997)
+        DISAS=-2
+        RETURN
+ 
+*P: SECTOR PRINTOUT
+    9   ISEC=-1
+        CALL SECTOR(2)
+        GOTO 600
+ 
+*H: GET HELP
+   10   CALL OUTCHR(FF)
+        CALL HELP
+        CALL OUTCHR(BELL)
+        E=GETCHX(E)
+        ISEC=-1
+        GOTO 600
+ 
+*Y: CHANGE PHASE OF A CITY
+   11   CALL DIREC
+        GOTO 600
+ 
+*T: BLOCK PRINTOUT
+   12   CALL OUTCHR(FF)
+        CALL BLOCK(2)
+        ISEC=-1
+        GOTO 600
+ 
+*V: SAVE GAME
+   13   CALL GAME(.TRUE.,NUM)
+        GOTO 300
+ 
+*J: PUT IN EDIT MODE
+   14   CALL TEST3(Z6)
+        IF(MYCODE(NUM)==0) GOTO 300
+        DISAS=-2
+        RETURN
+ 
+*?: HOW MANY HITS? LOADED?
+   15   IF((OWN1=='A').OR.(OWN1=='F')) GOTO 300
+        IB=H(N2)
+        IF(MODE==1) CALL CURSOR(100,KURSOR)
+        CALL STROUT('HITS LEFT-',0); CALL DECPRT(IB)
+        CALL STROUT('',51)
+        N=0
+        DO 402 I=1,500
+  402   IF(S(I)==Z6) N=N+1
+        IF(N==0) GOTO 700
+        IF(MODE==1) CALL CURSOR(200,KURSOR)
+        CALL DECPRT(N); CALL STROUT(' ARMIES ABOARD.',1)
+        GOTO 600
+  700   DO 405 I=1,200
+  405   IF(S(I+500)==Z6) N=N+1
+        IF(N==0) GOTO 600
+        IF(MODE==1) CALL CURSOR(200,KURSOR)
+        CALL DECPRT(N); CALL STROUT(' FIGHTERS ABOARD.',1)
+        GOTO 600
+ 
+*U: CALL REFERENCE MAP
+   18   ISEC=-1
+        CALL SECTOR(1)
+        GOTO 600
+ 
+*N: CALL ENEMY MAP
+   19   ISEC=-1
+        CALL SECTOR(0)
+        GOTO 600
+ 
+*+: BLOCK PRINT REF. MAP
+   20   CALL OUTCHR(FF)
+        ISEC=-1
+        CALL BLOCK(1)
+        E=GETCHX(E)
+        GOTO 600
+ 
+  600   CALL LTR(Z6,2)
+        GOTO 300
+  100   IF(ORDER(Z6)==0) GOTO 50
+        IF(MODE==1) CALL CURSOR(100,KURSOR)
+        CALL STROUT('YOU CANNOT MOVE ONTO THE EDGE OF THE WORLD.',1)
+        CALL STROUT('HARD RADIATION PREVAILS THERE. MOVE AGAIN.',1)
+        Z6=Z7
+        GOTO 600
+   50   RETURN
+        END
+ 
+        SUBROUTINE BLOCK(II)
+        DOUBLE PRECISION TTY
+        INTEGER ROW
+        COMMON/MODE/MODE,KURSOR,JECTOR ,ISEC
+        COMMON/G2/G2(100)
+        ISEC=-1
+        CALL OUTCHR(FF)
+        JECTOR=-1
+        CALL STROUT(' TTY#?',10)
+        ACCEPT 601,TTY
+  601   FORMAT(A10)
+        CALL OUTCHR(FF)
+        IF(TTY=='') TTY='TTY'
+        OPEN(UNIT=2,DEVICE=TTY,ACCESS='SEQOUT')
+        DO 300 J=0,5900,100
+        DO 400 K=100,1,-1
+        AB=A(II,K+J)
+  400   IF(AB#' ') GOTO 401
+        GOTO 300
+  401   DO 404 L=1,K
+  404   G2(L)=A(II,J+L)
+        WRITE(2,403) (G2(L),L=1,K)
+  403   FORMAT(1X,100A1)
+  300   CONTINUE
+        CLOSE(UNIT=2)
+        RETURN
+        END
+ 
+ 
+
+
+.

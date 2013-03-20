@@ -1,0 +1,98 @@
+
+        TITLE   CURSOR
+        ENTRY   CURSOR,ICORR,CORR
+ 
+        T0=0
+        T1=1
+        P=17
+ 
+.COMMON MODE    [4]
+ADDS=MODE + 1   ;SET < 0 IF WE'RE ON AN ADDS TERMINAL
+ 
+CURSOR: SKIPN   ,MODE
+         POPJ   P,              ;RETURN IF MODE=1
+        MOVE    T0,@(16)        ;GET DESIRED POSITION
+        SKIPGE  ,ADDS           ;SKIP IF WE'RE NOT ON AN ADDS TERMINAL
+         JRST   ADDSFOR
+        OUTSTR  [BYTE (7)33,"="];PREFIX
+        IDIVI   T0,^D100        ;SPLIT Y INTO T0, X INTO T1
+        ADDI    T0," "          ;ADD BASE
+        IONEOU  T0              ;AND OUTPUT Y COORD
+        ADDI    T1," "          ;ADD BASE TO X
+        IONEOU  T1              ;AND OUTPUT X COORD
+        POPJ    P,              ;RETURN
+ 
+ADDSFOR:
+        IDIVI   T0,^D100        ;SEPARATE INTO X AND Y
+        OUTCHR  [^D11]
+        IONEOU  T0              ;OUTPUT Y VECTOR
+        OUTCHR  [^D16]
+        MOVE    T0,T1
+        IDIVI   T0,^D10         ;CONVERT TO BCD
+        LSH     T0,4            ;HIGH BCD DIGIT
+        IOR     T0,T1
+        IONEOU  T0
+        POPJ    P,
+ 
+ICORR:  MOVE    T0,@0(16)       ;GET FORTRAN ARGUMENT
+CORR:   CAILE   T0,^D8
+         SUBI   T0,^D8          ;IF(T0>8) T0=T0-8
+        CAIGE   T0,1
+         ADDI   T0,^D8          ;IF(T0<1) T0=T0+8
+        POPJ    P,
+ 
+        ENTRY   TRMOP2,ECHOON,ECHOFF,GETCHX
+ 
+        TTY==12 ;RANDOM CHANNEL
+ 
+D1:     XWD     64240,703566
+        XWD     354000,1
+        XWD     351005,520212
+        XWD     466411,151212
+        XWD     202350,551210
+        XWD     205024,120432
+        XWD     50000,0
+ 
+TRMOP2: SETO    0
+        TRMNO.
+        EXIT    0,
+        MOVEM   TTYY
+        MOVE    [XWD 3,FUNC]
+        TRMOP.
+        EXIT    0,
+        POPJ    17,
+ 
+FUNC:   2010
+TTYY:   BLOCK   1
+        EXP     -1
+ 
+ECHOON: SETSTS  TTY,1
+        POPJ    17,
+ 
+ECHOFF: INIT    TTY,201
+         'TTY   '
+         Z
+          HALT  .
+        SETOM   TRMARG+1
+        GETLCH  TRMARG+1
+        HRRZS   TRMARG+1
+        MOVE    0,[3,,TRMARG]
+        TRMOP.  0,
+          HALT  .
+        POPJ    17,
+ 
+TRMARG: 2010
+        0
+        1
+ 
+GETCHX: CLRBFI
+        INCHRW  0
+        ROT     -7
+        OR      [BYTE(7) 0,40,40,40,40]
+        POPJ    17,
+ 
+        XPUNGE
+        END
+
+
+.

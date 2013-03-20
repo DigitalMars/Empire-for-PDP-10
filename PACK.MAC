@@ -1,0 +1,383 @@
+
+        SALL
+        TITLE   PACK    SUBROUTINE TO PACK EMP.DAT TO EMPIRE.DAT
+        ENTRY   PACK
+        .DIRECT .XTABM
+        K=0
+        T1=1
+        T2=2
+        T3=3
+        T4=4
+        Z=5
+        I=6
+        J=7
+        C=10
+        R=11
+        RT=12
+        ND=13
+        L=14
+        B=15
+        P=17
+        ICHN==1
+        OCHN==2
+        NUMBER==123456
+        BIT==400000
+        MAXLEN==1000
+ 
+PACK:   MOVE    T1,[T2,,SAVEAC]
+        BLT     T1,SAVEAC+13
+        MOVEI   Z,11
+        SKIPL   C,@0(16)
+        JRST    COMPRS
+RESTOR: MOVEI   T1,^D36
+        PUSHJ   P,SETIN
+        PUSHJ   P,READHD
+        MOVEI   T1,(Z)
+        PUSHJ   P,SETOUT
+        PUSHJ   P,DECODE
+        JRST    FINISH
+COMPRS: MOVEI   T1,(Z)
+        PUSHJ   P,SETIN
+        MOVEI   T1,^D36
+        PUSHJ   P,SETOUT
+        MOVE    T1,[LINKS,,LINKS+1]
+        SETZM   LINKS
+        BLT     T1,LINKS+MAXLEN-1
+        MOVEI   T1,4
+        IMUL    T1,INBLK+5
+        MOVEM   T1,TOTAL
+        PUSHJ   P,COUNT
+        MOVE    T2,LENGTH
+        PUSHJ   P,LINK
+        PUSHJ   P,BITMAK
+        SETZM   CNTIN
+        SETZM   CNTOUT
+        PUSHJ   P,WRITHD
+        WAIT    ICHN,
+        USETI   ICHN,1
+        HRRZ    T1,IBUF
+        MOVEI   T2,(T1)
+        MOVSI   T3,400000
+ZAPBUF: ANDCAM  T3,(T2)
+        HRRZ    T2,(T2)
+        CAIE    T2,(T1)
+        JRST    ZAPBUF
+        IORM    T3,IBUF
+        SETZM   IBUF+2
+        PUSHJ   P,ENCODE
+        JRST    FINISH
+WRITHD: MOVSI   T1,NUMBER
+        IORI    T1,(Z)
+        PUSHJ   P,PUTWRD
+        LDB     T1,[POINT 4,INBLK+4,12]
+        HLL     T1,INBLK+3
+        PUSHJ   P,PUTWRD
+        MOVE    T1,TOTAL
+        PUSHJ   P,PUTWRD
+        HRLZ    T1,LENGTH
+        SUBI    T1,-1
+        PUSHJ   P,PUTWRD
+        MOVN    T2,LENGTH
+        MOVSI   T2,1(T2)
+        MOVE    T1,LINKS+1(T2)
+        PUSHJ   P,PUTWRD
+        AOBJN   T2,.-2
+        POPJ    P,
+PUTWRD: SOSG    OBUF+2
+        JRST    PUTBF
+PUTBFC: IDPB    T1,OBUF+1
+        POPJ    P,
+PUTBF:  AOS     CNTOUT
+        OUT     OCHN,
+        JRST    PUTBFC
+          HALT
+ENCODE: SETZB   T1,T2
+        MOVEI   T3,^D36
+        MOVE    T4,TOTAL
+        SETZM   BITTTL
+CODLOP: PUSHJ   P,CHARIN
+          HALT
+        MOVE    T2,BITS(C)
+        SKIPN   C,COUNTS(C)
+          HALT
+        ADDM    C,BITTTL
+        SUBI    T3,(C)
+CODPUT: ROTC    T1,(C)
+        JUMPG   T3,CODNXT
+        ROTC    T1,(T3)
+        PUSHJ   P,PUTWRD
+        MOVN    C,T3
+        ADDI    T3,^D36
+        JUMPN   C,CODPUT
+CODNXT: SOJG    T4,CODLOP
+        CAIN    T3,^D36
+        POPJ    P,
+        LSH     T1,(T3)
+        JRST    PUTWRD
+LINK:   MOVE    ND,LENGTH
+        SOS     RT,ND
+        LSH     RT,-1
+        JUMPN   RT,MKHEAP
+MKLINK: MOVE    T1,CHARS
+        MOVE    T2,CHARS+1
+        MOVE    T3,COUNTS(T1)
+        ADD     T3,COUNTS(T2)
+        MOVEM   T3,BITS(ND)
+        TRZN    T1,MAXLEN
+        ORI     T1,BIT
+        TRZN    T2,MAXLEN
+        ORI     T2,BIT
+        HRLI    T1,(T2)
+        MOVEM   T1,LINKS(ND)
+        MOVEI   T1,MAXLEN(ND)
+        MOVEM   T1,CHARS
+        MOVE    T1,CHARS(ND)
+        MOVEM   T1,CHARS+1
+        SOJLE   ND,CPOPJ
+        MOVEI   RT,1
+MKHEAP: MOVE    R,CHARS(RT)
+        MOVE    K,COUNTS(R)
+        MOVE    J,RT
+GODOWN: MOVE    I,J
+        LSH     J,1
+        CAILE   J,(ND)
+        JRST    PTRSAV
+        CAIL    J,(ND)
+        JRST    MOVEON
+        MOVE    T1,CHARS(J)
+        MOVE    T1,COUNTS(T1)
+        MOVE    T2,CHARS+1(J)
+        CAMLE   T1,COUNTS(T2)
+        AOS     J
+MOVEON: MOVE    T1,CHARS(J)
+        CAMG    K,COUNTS(T1)
+        JRST    PTRSAV
+        MOVEM   T1,CHARS(I)
+        JRST    GODOWN
+PTRSAV: MOVEM   R,CHARS(I)
+        SOJG    RT,MKHEAP
+        JUMPL   RT,MKLINK
+        MOVE    R,CHARS
+        MOVE    K,COUNTS(R)
+        SETZ    I,
+        MOVEI   J,2
+        JRST    GODOWN+2
+CPOPJ:  POPJ    P,
+BITMAK: MOVE    T1,[COUNTS,,COUNTS+1]
+        SETZM   COUNTS
+        BLT     T1,COUNTS+MAXLEN-1
+        HRLOI   T1,377777
+        MOVEM   T1,BITMIN
+        SETZB   L,BITMAX
+        MOVEI   I,1
+RECURS: ADDI    L,1
+        CAILE   L,^D36
+          HALT
+        MOVE    I,LINKS(I)
+        ANDCM   B,BITTAB(L)
+        HLLM    I,(P)
+        PUSHJ   P,DOWNGO
+        HLRZ    I,(P)
+        IOR     B,BITTAB(L)
+DOWNGO: TRZE    I,BIT
+        JRST    TERMIN
+        PUSHJ   P,RECURS
+        SOJA    L,CPOPJ
+TERMIN: MOVEM   L,COUNTS(I)
+        CAMLE   L,BITMAX
+        MOVEM   L,BITMAX
+        CAMGE   L,BITMIN
+        MOVEM   L,BITMIN
+        MOVEM   B,BITS(I)
+        POPJ    P,
+FINISH: CLOSE   OCHN,
+        RELEASE OCHN,
+        MOVEI   T1,4
+        MOVEM   T1,INBLK
+        SETZ    T1,
+        DPB     T1,[POINT 9,INBLK+4,8]
+        RENAME  ICHN,INBLK
+        JFCL
+        SETZM   INBLK+2
+        RENAME  ICHN,INBLK
+        OUTSTR  [ASCIZ/UNABLE TO DELETE INPUT FILE
+/]
+        RELEASE ICHN,
+        MOVE    T1,[SAVEAC,,T2]
+        BLT     T1,B
+        POPJ    P,
+DECODE: MOVE    T2,TOTAL
+        SETZ    T3,
+DECLOP: MOVE    I,LINKS
+DECBIT: MOVE    I,LINKS(I)
+        SOJG    T3,DECSMW
+        MOVEI   T3,^D36
+        PUSHJ   P,GETWRD
+        SKIPA   T4,T1
+DECSMW: LSH     T4,1
+        JUMPGE  T4,.+2
+        MOVS    I,I
+        TRNN    I,BIT
+        JRST    DECBIT
+        MOVEI   T1,(I)
+        PUSHJ   P,PUTWRD
+        SOJG    T2,DECLOP
+        POPJ    P,
+SETIN:  MOVEI   T2,14
+        MOVE    T3,DEV
+        MOVEI   T4,IBUF
+        OPEN    ICHN,T2
+OPERR:    JRST  [OUTSTR [ASCIZ/CANT OPEN INPUT DEVICE
+/]
+                HALT]
+        MOVE    T2,[INBLK,,INBLK+1]
+        SETZM   INBLK
+        BLT     T2,INBLK+14
+        MOVEI   T2,14
+        MOVEM   T2,INBLK
+        SKIPL   C,@0(16)
+        JRST    COMN
+        MOVE    T2,DAT
+INCON:  MOVEM   T2,INBLK+2
+        MOVE    T2,EXT
+        HLLM    T2,INBLK+3
+        SETZM   INBLK+1
+        LOOKUP  ICHN,INBLK
+LKERR:    JRST  [OUTSTR [ASCIZ\CANT LOOKUP/ENTER FILE
+\]
+                HALT]
+        SKIPN   Z,T1
+          JRST  [OUTSTR [ASCIZ/NOT A CHANCE/]
+                HALT]
+        DPB     Z,[POINT 6,IBUF+1,11]
+        INBUF   ICHN,3
+        POPJ    P,
+COMN:   MOVE    T2,TMP
+        JRST    INCON
+SETOUT: MOVEI   T2,14
+        MOVE    T3,DEV
+        MOVSI   T4,OBUF
+        OPEN    OCHN,T2
+          JRST  OPERR
+        DPB     T1,[POINT 6,OBUF+1,11]
+        MOVE    T1,[INBLK,,OUTBLK]
+        BLT     T1,OUTBLK+14
+        SETZM   OUTBLK+11
+        SKIPL   C,@0(16)
+        JRST    SETC
+        MOVE    T1,TMP
+SETOU1: MOVEM   T1,OUTBLK+2
+        ENTER   OCHN,OUTBLK
+          JRST  LKERR
+        OUTBUF  OCHN,3
+        POPJ    P,
+SETC:   MOVE    T1,DAT
+        JRST    SETOU1
+GETWRD: SOSGE   IBUF+2
+        JRST    GETWRB
+        ILDB    T1,IBUF+1
+        POPJ    P,
+GETWRB: AOS     CNTIN
+        IN      ICHN,
+        JRST    GETWRD
+          HALT
+COUNT:  SETZB   C,LENGTH
+        MOVE    T1,[CHARS,,CHARS+1]
+        SETZM   CHARS
+        BLT     T1,CHARS+MAXLEN-1
+        MOVE    T1,[COUNTS,,COUNTS+1]
+        SETZM   COUNTS
+        BLT     T1,COUNTS+MAXLEN-1
+        MOVE    T2,TOTAL
+CNTLOP: PUSHJ   P,CHARIN
+          HALT
+        SKIPE   COUNTS(C)
+        JRST    CNTMOR
+        AOS     T1,LENGTH
+        MOVEM   C,CHARS-1(T1)
+CNTMOR: AOS     COUNTS(C)
+        SOJG    T2,CNTLOP
+        POPJ    P,
+CHARIN: SOSGE   IBUF+2
+        JRST    GETBF
+        IBP     IBUF+1
+        LDB     C,IBUF+1
+        AOS     (P)
+        POPJ    P,
+GETBF:  AOS     CNTIN
+        IN      ICHN,
+        JRST    CHARIN
+        STATZ   ICHN,740000
+          HALT
+        POPJ    P,
+READHD: PUSHJ   P,GETWRD
+        TLC     T1,NUMBER
+        TLNE    T1,-1
+        JRST    [OUTSTR [ASCIZ/WRONG HEADER DATE IN FILE
+/]
+                HALT]
+        MOVEI   Z,(T1)
+        PUSHJ   P,GETWRD
+        PUSHJ   P,GETWRD
+        MOVEM   T1,TOTAL
+        PUSHJ   P,GETWRD
+        MOVEI   T4,1
+        LSH     T4,(Z)
+        HLRZ    T2,T1
+        SKIPE   T2
+        CAILE   T2,(T4)
+          HALT
+        MOVEM   T2,LENGTH
+        MOVEI   T2,(T1)
+        SKIPE   T2
+        CAILE   T2,(T4)
+          HALT
+        MOVEM   T2,LINKS
+        MOVN    T2,LENGTH
+        MOVSI   T2,(T2)
+HDRRDL: PUSHJ   P,GETWRD
+        MOVEM   T1,LINKS+1(T2)
+        JUMPE   T1,HDRRDN
+        HLRZ    T3,T1
+        TRZN    T3,BIT
+        SKIPE   T3
+        CAILE   T3,(4)
+          HALT
+        MOVEI   T1,(T1)
+        TRZN    T1,BIT
+        SKIPE   T1
+        CAILE   T1,(T4)
+          HALT
+HDRRDN: AOBJN   T2,HDRRDL
+        POPJ    P,
+        BITTAB: EXP     0
+        XX==1B0
+        REPEAT  ^D36,<
+        EXP     XX
+        XX==XX_<-1>
+>
+        DAT:    'EMPIRE'
+        EXT:    'DAT   '
+        DEV:    'DSK   '
+        TMP:    'EMP   '
+        IBUF:   BLOCK 3
+        OBUF:   BLOCK 3
+        INBLK:  BLOCK 15
+        OUTBLK: BLOCK 15
+        SAVEAC: BLOCK 14
+        BITMAX: BLOCK 1
+        BITMIN: BLOCK 1
+        TOTAL:  BLOCK 1
+        BITTTL: BLOCK 1
+        LENGTH: BLOCK 1
+        CNTIN:  BLOCK 1
+        CNTOUT: BLOCK 1
+        CHARS:  BLOCK MAXLEN
+        COUNTS: BLOCK MAXLEN
+        BITS:   BLOCK MAXLEN
+        LINKS:  BLOCK MAXLEN
+        XPUNGE
+        END
+
+
+.

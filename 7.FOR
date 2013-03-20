@@ -1,0 +1,140 @@
+
+ 
+ 
+ 
+ 
+C SUBROUTINE 7
+ 
+        SUBROUTINE STSOUT(MYCOD)
+        INCLUDE 'COMMON.EMP/NOLIST'
+        DOUBLE PRECISION FUNC
+        DIMENSION COMM(6101:6108)
+        DATA COMM/'D','E','W','Q','A','Z','X','C'/
+        CALL CURSOR(100)
+        CALL STROUT('FUNCTION:',0)
+        IF(MYCOD<6100) GOTO 100
+        DO 101 I=6101,6108
+  101   IF(I==MYCOD) TYPE 102,COMM(I)
+  102   FORMAT('+',A1,$)
+        GOTO 203
+  100   IF(MYCOD>100) GOTO 200
+        FUNC='SENTRY'
+        IF(MYCOD==0) FUNC='AWAKE'
+        IF(MYCOD==100) FUNC='RANDOM'
+  202   TYPE 201, FUNC
+  201   FORMAT('+',A10,$)
+        RETURN
+  200   FUNC='FILL'
+        IF(MYCOD==9997) GOTO 202
+        CALL DECPRT(MYCOD)
+  203   CALL SPACE
+        RETURN
+        END
+ 
+        SUBROUTINE IDEN(OWN)
+        COMMON/MODE/MODE,KURSOR,JECTOR ,ISEC
+        IF((OWN>='1').AND.(OWN<='8')) CALL STROUT('ENEMY',10)
+        IF((OWN<='T').AND.(OWN>='A')) CALL STROUT('YOUR',10)
+        IF((OWN=='A').OR.(OWN=='1')) GOTO 702
+        IF((OWN=='F').OR.(OWN=='2')) GOTO 703
+        IF((OWN=='D').OR.(OWN=='3')) GOTO 704
+        IF((OWN=='S').OR.(OWN=='4')) GOTO 705
+        IF((OWN=='T').OR.(OWN=='5')) GOTO 706
+        IF((OWN=='R').OR.(OWN=='6')) GOTO 707
+        IF((OWN=='C').OR.(OWN=='7')) GOTO 708
+* THEN IT IS A BATTLESHIP!
+        CALL STROUT('BATTLESHIP',10)
+        RETURN
+  702   CALL STROUT('ARMY',10)
+        RETURN
+  703   CALL STROUT('FIGHTER',10)
+        RETURN
+  704   CALL STROUT('DESTROYER',10)
+        RETURN
+  705   CALL STROUT('SUBMARINE',10)
+        RETURN
+  706   CALL STROUT('TROOP TRANSPORT',10)
+        RETURN
+  707   CALL STROUT('CRUISER',10)
+        RETURN
+  708   CALL STROUT('AIRCRAFT CARRIER',10)
+        RETURN
+        END
+ 
+        SUBROUTINE CITYCT
+        INCLUDE 'COMMON.EMP/NOLIST'
+        DIMENSION INDEX(15)
+        DATA (INDEX(J),J=1,15)/11,12,0,13,14,15,0,0,0,16,0,17,0,0,18/
+        NUMBER(9)=0
+        DO 100 I=11,18
+  100 NUMBER(I)=0
+        DO 200 I=1,70
+        IF(OWNER(I)#2) GOTO 200
+        NUMBER(9)=NUMBER(9)+1
+        IF(PHASE(I)==0) GOTO 200
+        INDEXX=INDEX(PHASE(I))
+        NUMBER(INDEXX)=NUMBER(INDEXX)+1
+  200 CONTINUE
+ 
+* NOW LET NUMBER(10)=LAST FILLED SLOT IN TARGET
+        NUMBER(10)=1
+        DO 300 I=70,1,-1
+        J=I                             !DO INDICES ARE NOT SAVED AFTER THE DO LOOP ENDS
+  300   IF(TARGET(I)#0) GOTO 301
+        RETURN
+  301   NUMBER(10)=J
+        RETURN
+        END
+ 
+        FUNCTION EDGER(I)
+        COMMON /IARROW/IARROW(0:9)
+        EDGER=0.0
+        DO 100 IA=1,8
+  100 IF(D1(I+IARROW(IA))=='.') EDGER=EDGER+1.0
+        RETURN
+        END
+ 
+        FUNCTION IPHASE(I)
+        IA=(I-I/536870912*536870912)/4194304-48
+        IF (IA==-16)GO TO 3786
+        IPHASE=(I/536870912-48)*10+IA
+        GO TO 3787
+ 3786 IPHASE=I/536870912-48
+ 3787 RETURN
+        END
+ 
+ 
+        FUNCTION JIGGLE(Z6,NUM)
+        INCLUDE 'COMMON.EMP/NOLIST'
+        INTEGER AB(9)
+        DO 201 I=1,9
+  201   AB(I)=A(1,Z6+IARROW(I))
+        IF(AB(9)#'T') GOTO 200
+        JIGGLE=0
+        CALL CMYCOD(NUM,0)
+        RETURN
+ 
+  200   DO 100 I1=1,9
+  100 IF((AB(I1)=='*').OR.(AB(I1)=='X')) GOTO 101
+  101 DO 102 I2=1,9
+  102 IF((AB(I2)>='1').AND.(AB(I2)<='8')) GOTO 103
+  103 DO 104 I3=1,9
+  104 IF(AB(I3)=='T') GOTO 105
+  105 M1=INT(RAN(C1)*8.0+1.0)
+        M2=M1+7
+        DO 106 I4=M1,M2
+        I5=ICORR(I4)
+        I=Z6+IARROW(I5)
+  106 IF((ORDER(I)==0).AND.(AB(I5)=='+')) GOTO 107
+        I4=0
+  107 M=I1
+        IF(M==9) M=I3
+        IF(M==9) M=I2
+        IF(M==9) M=I5
+        IF(I4==0) M=9
+        JIGGLE=M
+        RETURN
+        END
+ 
+ 
+

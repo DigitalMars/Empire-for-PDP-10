@@ -1,0 +1,174 @@
+
+*MODULE 14
+ 
+        SUBROUTINE CARIER
+* THIS SUBROUTINE COMPUTES AND EVALUATES ALL COMPUTER CARRIER MOVES
+ 
+        INCLUDE 'COMMON.EMP/NOLIST'
+        DIMENSION OK(5)
+        DATA OK/'.',' ','O','*','X'/
+ 
+        NUMBER(7)=0
+        IF(CODER==7.) TYPE 100
+  100   FORMAT(' CARRIER CODES')
+        OWN1='7'
+        MONKEY=0
+ 
+* BEGIN LOOP
+        DO 3000 Y=1,LIMIT(15)
+        Z6=S(ICA2+Y)
+        IF(Z6==0) GOTO 3000
+        DIR=MOD(Y,2)*2-1
+        H1=H(ICA2H+Y)
+        IF(A(1,Z6)=='X') H1=H1+1
+        IF(H1>8) H1=8
+ 
+        DO 2501 TURN=1,2
+        IF((TURN==2).AND.(H1<=4)) GOTO 3000     !MOVE AT 1/2 SPEED
+        P='NSENS'
+        N=0
+        Z7=Z6
+        AB=A(1,Z6)
+        IF((AB#'7').AND.(AB#'X')) GOTO 503
+ 
+C MOVE SELECTION
+        IFO=IFORM(CODE(Y))
+        ILA=ILATT(CODE(Y))
+        IF(H1==8) GOTO 3002
+        IFO=8
+        ILA=IPORT(Z6)
+        GOTO 7000
+ 
+* IFO=7: RANDOM DIRECTION
+* IFO=6: HEADING TOWARDS STATION
+* IFO=8: DAMAGED
+* IFO=9: STATIONED
+ 
+* DOES A NEW CODE NEED TO BE SELETED? 6000:YES, 7000:NO
+ 3002   GOTO (6,7,8,9) IFO-5
+        GOTO 6000
+ 
+    6   GOTO 7000
+ 
+    7   GOTO 6000
+ 
+    8   IF(H1==8) 6000, 7000
+ 
+    9   DO 10 I=1,70
+        IF(TARGET(I)==0) GOTO 10
+        IF((A(0,TARGET(I))=='O').AND.(IDIST(Z6,TARGET(I))<=10))
+     & GOTO 7000
+   10   CONTINUE
+        DO 11 I=1,10
+   11   IF(IDIST(LOCI(I,2))<=10) GOTO 7000
+        GOTO 6000
+ 
+* NEW CODE SELECTION
+ 
+ 6000   DO 6001 J=1,10
+        IF(LOCI(J,2)==0) GOTO 6001
+        LOC=LOCI(J,2)
+        KDORK=0
+        ID=500
+        DO 6002 K=1,70
+        IF(OWNER(K)#2) GOTO 6002
+        IF(IDIST(X(K),LOC)>=ID) GOTO 6002
+        ID=IDIST(X(K),LOC)
+        IF(ID<10) GOTO 6001
+        KDORK=X(K)
+ 6002   CONTINUE
+        DO 6003 K=ICA2+1,ICA2+LIMIT(15)
+        IS=S(K)
+        IF(IS==0) GOTO 6003
+        IF(IDIST(IS,LOC)>=ID) GOTO 6003
+        IF(MOD(IFORM(CODE(K-ICA2)),10)#9) GOTO 6003
+        ID=IDIST(IS,LOC)
+        IF(ID<10) GOTO 6001
+        KDORK=IS
+ 6003   CONTINUE
+        IF(KDORK==0) GOTO 6001
+ 6004   IF(IDIST(KDORK,LOC)<1) GOTO 6001
+        LOC=LOC+IARROW(MOV(LOC,KDORK))
+        IF(IDIST(KDORK,LOC)>19) GOTO 6004
+        AGARB=A(0,LOC)
+        IF((AGARB#' ').AND.(AGARB#'.')) GOTO 6004
+        IFO=6
+        ILA=LOC
+        GOTO 7000
+ 6001   CONTINUE
+ 
+* RANDOM DIRECTION SELECTION
+        IF(IFO==7) GOTO 7000
+        IFO=7
+        KDORK=0
+        ILA=INT(RAN(C1)*8.+1.)
+ 
+* NOW PICK THE MOVE SPECIFIED BY IFO AND ILA
+7000    IF(IFO==8) GOTO 7003
+        IF(IFO#7) GOTO 7001
+        MOVE=ILA; GOTO 7010
+ 7001   IF(IFO#6) GOTO 7002
+        IF(ILA#Z6) GOTO 7003
+        IFO=9
+        GOTO 7002
+ 7003   MOVE=PATH(Z6,ILA,DIR,OK,FLAG)
+        GOTO 7010
+ 7002   IF(Z6#ILA) MOVE=MOV(Z6,ILA)
+        IF(Z6==ILA) MOVE=INT(RAN(C1)*8.+1.)
+ 
+* MOVE CORRECTION
+ 7010   AGGR=0.
+        IF((NUMBER(7)>30).AND.(MOD(IFO,10)#9)) AGGR=5.
+        MOVE=MOVCOR(IFO,TURN,Z6,MOVE,H1,1,AGGR,'7',1.,DIR)
+        IF((H1<8).AND.(AB=='X')) MOVE=0
+        IF(IFO==7) ILA=IABS(MOVE)
+        CODE(Y)=10000*IFO+ILA
+        IB=CODE(Y)
+        IF(CODER==7.) TYPE 101,IB
+  101   FORMAT(1X,G)
+ 
+C MOVE EVALUATION
+        Z6=Z6+IARROW(IABS(MOVE))
+        IF(D1(Z7)#'*') CALL CHANGE(Z7,D1(Z7),1)
+        AB=A(1,Z6)
+        IF(AB=='.') GOTO 700
+        IF(AB=='X') GOTO 701
+        IF((AB>='A').AND.(AB<='T')) GOTO 703
+        TYPE 502,OWN1,Z6,AB
+  502   FORMAT(' ENEMY ',A1,' AT ',I4,' RAN AGROUND ON ',A1)
+  503   H1=0
+        GOTO 815
+  703 H2=30
+        P='SENSE'
+        OWN2=AB
+        CALL FIND(OWN2,Z6,Z8,H2)
+        CALL FGHT(Z6,H1,H2,'7',OWN2)
+        CALL FIND(OWN2,Z6,Z8,H2)
+        IF(H1<=0) GOTO 815
+  700 CALL CHANGE(Z6,OWN1,1)
+  701   CALL CHAS(Y+ICA2,Z6)
+        CALL CHITS(Y+ICA2H,H1)
+        IF(TURN==1) NUMBER(7)=NUMBER(7)+1
+  815 N=0
+        IF(P=='SENSE') CALL SENSOR(Z6)
+        DO 702 I=1,LIMIT(10)
+        IF(Z7#S(I+2000)) GOTO 702
+        N=N+1
+        CALL CHAS(I+2000,Z6)
+        IF(N>H1) CALL CHAS(I+2000,0)
+  702 CONTINUE
+        IF(H1<=0) GOTO 850
+        MONKEY=Y
+        GOTO 899
+  850   CALL CHAS(Y+ICA2,0)
+        CODE(Y)=0
+        CALL CHITS(ICA2H+Y,0)
+  899 CALL SONAR(Z6)
+ 2501 CONTINUE
+ 3000 CONTINUE
+        LIMIT(15)=MONKEY
+ 2001 RETURN
+        END
+
+
+.

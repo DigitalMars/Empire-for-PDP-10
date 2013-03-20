@@ -1,0 +1,136 @@
+
+C       SUBROUTINE 10
+ 
+ 
+        FUNCTION KLINE(KI,JECTOR)
+        INTEGER FOO(0:3)
+        DATA FOO/0,1300,2800,4000/
+        KI=0
+        IF(JECTOR>=4) KI=30
+        INDEX=JECTOR
+        IF(JECTOR>=4) INDEX=JECTOR-4
+        KLINE=FOO(INDEX)
+        RETURN
+        END
+ 
+        FUNCTION ISCAPE(I,M)
+*: I = # OF TIMES ONE HAS TRIED TO ESCAPE
+*M: DIRECTION IN WHICH DANGER LIES
+        INTEGER ITAB(8)
+        LOGICAL PASS
+        COMMON/PASS/PASS
+        DATA ITAB/4,5,3,6,2,7,1,0/
+        ISC=M
+        IF((PASS).AND.((I<1).OR.(I>8))) GOTO 100
+        IF((PASS).AND.((ISC<1).OR.(ISC>8))) GOTO 100
+        ISC=ICORR(M+ITAB(I))
+        ISCAPE=ISC
+        RETURN
+  100   TYPE 102,ISC,I,M
+  102   FORMAT(' ISCAPE- ISC,M,I:',3G)
+        RETURN
+        END
+ 
+        FUNCTION HITS(OWN)
+        REAL A(8),B(8)
+        DATA A/'A','F','D','S','T','R','C','B'/
+        DATA B/1. , 1., 3., 2., 3., 8., 8., 12./
+        HITS=0.0
+        DO 1 I=1,8
+        IF (OWN.EQ.A(I)) GOTO 2
+1       CONTINUE
+        RETURN
+2       HITS=B(I)
+        RETURN
+        END
+ 
+        FUNCTION ATTACK(OWN1,OWN2,IH1,AGGR)
+        H1=FLOAT(IH1)
+        C1=COST(OWN1,H1)
+        C2=COST(OWN2,0.)
+        S1=1.
+        S2=1.
+        IF(OWN1=='4') S1=3.
+        IF(OWN2=='S') S2=3.
+        H2=HITS(OWN2)
+        H1=IFIX((H1+S2-1.)/S2)
+        H2=IFIX((H2+S1-1.)/S1)
+        ATTACK=(C1+C2)*VICTRY(H1,H2)-C1+AGGR
+        RETURN
+        END
+ 
+        SUBROUTINE SECTOR(II)
+        IMPLICIT INTEGER(A-Z)
+        COMMON/MODE/MODE,ADDS,JECTOR ,ISEC
+        COMMON/G2/G2(100)
+        FF="32
+        IF(JECTOR==-1) GOTO 108
+        IF(MODE#1) RETURN
+        IF(ISEC==JECTOR) RETURN
+        ISEC=JECTOR
+        LINE=KLINE(KI,JECTOR)
+        CALL OUTCHR(FF)
+        GOTO 691
+  108   CALL STROUT('SECTOR?',10)
+        JECTOR=GETCHX(JECTOR)
+        JECTOR=IPHASE(JECTOR)
+        IF((JECTOR<0).OR.(JECTOR>9)) JECTOR=0
+        CALL OUTCHR(FF)
+        KI=0
+        IF(JECTOR<5) GOTO 104; KI=30; JECTOR=JECTOR-5
+  104   LINE=JECTOR*1000        !LINE=TOP LINE OF SECTOR
+        JECTOR=-1               !LET MAIN KNOW THAT UPDATING SECTOR ISNT USED
+  691   LINEFI=LINE+2000        !LINEFI=LINE AFTER LAST LINE OF SECTOR
+        LINEC=LINE-100          !GET SET FOR LINE 205
+  205   LINEC=LINEC+100         !GOTO NEXT LINE
+        IF(LINEC>=LINEFI) GOTO 204 !CHECK FOR END OF SECTOR
+        KSTART=KI+1             !IF LINE IS BROKEN, KSTART WILL BE MODIFIED
+  206   DO 300 J=KSTART,KI+70   !KI ITSELF IS NOT IN SECTOR
+        AB=A(II,J+LINEC)        !GET CHARACTER
+  300   IF(AB#' ') GOTO 200     !FIND FIRST NON-BLANK SPOT
+        GOTO 205                !NO CHARACTERS IN THIS LINE
+  200   KINIT=J         !AB IS ALREADY CALCULATED
+        G2(J)=AB                !AVOIDS REPITITION
+        DO 201 J=KINIT+1,KI+70  !LOOK FOR BLANK CHARACTER
+        AB=A(II,J+LINEC)        !GET CHARACTER
+        IF(AB==' ') GOTO 202    !EXIT LOOP IF BLANK
+  201   G2(J)=AB                !PUT CHAR. STRING IN AN ARRAY
+  202   KFINAL=J-1                      !SET END  OF CHAR. STRING
+        CALL CURSOR(KINIT-LINE+LINEC-KI+300)    !POSITION CURSOR
+        DO 10 J=KINIT,KFINAL
+   10   CALL OUTCHR(LSH(G2(J),-29))     !PRINT OUT CHAR. STRING
+        IF(KFINAL>=KI+70) GOTO 205              !NEXT LINE
+        KSTART=KFINAL+1         !LOOK AT REST OF LINE
+        GOTO 206
+  204   KURSOR=2300
+        DO 450 I=KI,KI+70,10
+        CALL CURSOR(KURSOR)
+        CALL DECPRT(I)
+        KURSOR=KURSOR+10
+  450   CONTINUE
+ 
+        KURSOR=372
+        DO 451 I=LINE/100,LINE/100+19,2
+        CALL CURSOR(KURSOR)
+        CALL DECPRT(I)
+        KURSOR=KURSOR+200
+  451   CONTINUE
+ 
+        CALL CURSOR(0)          !SET CURSOR TO BEG. OF SCREEN
+        RETURN
+        END
+ 
+        SUBROUTINE HEAD(OWN1,Y,Z6)
+        IMPLICIT INTEGER(A-Z)
+        CALL CURSOR(0)
+        CALL IDEN(OWN1)
+        CALL DECPRT(Y)
+        CALL STROUT(' AT',10)
+        CALL DECPRT(Z6)
+        CALL SPACE
+        RETURN
+        END
+ 
+
+
+.

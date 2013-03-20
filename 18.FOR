@@ -1,0 +1,340 @@
+
+! SUBROUTINE COLLECTION 18
+ 
+ 
+ 
+        SUBROUTINE ARMYEN(DUMMY)
+        INCLUDE 'COMMON.EMP/NOLIST'
+        DIMENSION OK(5)
+        DATA OK/'+',' ','O','5','*'/
+ 
+C  THIS SUBROUTINE HANDLES ENEMY ARMY MOVES
+ 
+ 3100   MONKEY=0
+        NUMBER(1)=0
+        IF(CODER==1.) TYPE 3189
+ 3189   FORMAT(' ARMY CODES')
+ 
+C START ARMY MOVE LOOP
+        DO 3190 Y=1,LIMIT(9)
+        Z6=S(IAR2+Y)
+        IF(Z6==0) GOTO 3190
+        IF(.NOT.PASS) GOTO 7005
+        CALL CURSOR(50)
+        CALL DECPRT(Y)
+        CALL CURSOR(60)
+        CALL DECPRT(NPATH)
+        NPATH=0
+ 7005   NUMBER(1)=NUMBER(1)+1
+        Z7=Z6
+        MONKEY=Y
+        DIR=MOD(Y,2)*2-1                !SET DIR TO 1 OR -1
+        P=0.0
+        AB=A(1,Z6)              !SET AB=WHAT IS SHOWING WHERE THE ARMY IS
+        IF((AB#'1').AND.(AB#'5').AND.(AB#'X')) GOTO 3101
+ 
+C  AGE AR2S
+        IF((AR2S(Y)<=100).OR.(AR2S(Y)>1000)) AR2S(Y)=AR2S(Y)-1
+        IF((AR2S(Y)<0).OR.(AR2S(Y)==1000)) AR2S(Y)=0
+ 
+        IF(AB#'5') GOTO 3102
+        IF(ARMJMP(Z6,AR2S(Y))==0) GOTO 3190
+ 
+C MOVE SELECTION
+3102    IFO=IFORM(CODE(Y))
+        ILA=ILATT(CODE(Y))
+ 
+C  IF A PRIORITY MOVE EXISTS, PICK IT AND DON'T BOTHER SLUGGING
+C  THHROUGH CODE SELECTION AND MOVE SELECTION
+        MOVE1=PRIORITY(Z6,IFO,ILA,DIR,AB)
+        IF(MOVE1#0) GOTO 3143
+ 
+ 
+C IFO=0: MOVE IN CERTAIN DIRECTION, OR FOLLOW SHORE
+C IFO=1: MOVE TOWARDS TARGET CITY
+C IFO=2: MOVE TOWARDS AN ENEMY ARMY
+C IFO=3: MOVE TOWARDS A TROOP TRANSPORT
+ 
+        GOTO (10,11,12,13) IFO+1
+ 
+   10   GOTO 100                !LOOK FOR TARGETS, LOCI, TT'S
+ 
+   11   IF(A(1,ILA)=='X') GOTO 100      !CITY HAS BEEN CAPTURED
+        GOTO 201                        !MOVE
+ 
+   12   IF(ILA==Z6) GOTO 100            !ARRIVED AT ENEMY CONCENTRATION
+        GOTO 201                        !MOVE
+ 
+   13   IF(ILA>100) GOTO 100                            !INVALID VALUE FOR ILA
+        IF(CODE(ILA+ITT2-1500)>=60000) GOTO 1030        !TT IS FULL
+        IF(S(ILA+ITT2)==0) GOTO 1030                    !TT SUNK
+        IF(H(ILA+ITT2H)<3) GOTO 1030                    !TT DAMAGED
+        GOTO 202
+ 
+C  SELECT A NEW CODE
+  100   CONTINUE
+ 
+C  LOOK FOR TARGET CITY
+ 1010   IA=INT(RAN(C1)*FLOAT(NUMBER(10))+1.0)
+        IB=IA+NUMBER(10)
+        DO 3122 IC=IA,IB
+        I=IC
+        IF(I>NUMBER(10)) I=I-NUMBER(10)
+        IF(TARGET(I)==0) GOTO 3122
+        IF(IDIST(Z6,TARGET(I))>20) GOTO 3122
+        MOVE=PATH(Z6,TARGET(I),DIR,OK,FLAG)
+        NPATH=NPATH+1
+        IF(FLAG==0) GOTO 3122                           !CAN'T GET TO IT
+        IFO=1
+        ILA=TARGET(I)
+        GOTO 400                                        !MOVE
+ 3122   CONTINUE
+ 
+C  LOOK FOR AN ARMY THAT IS ON YOUR CONTINENT
+        IF(LOCI(10,11)#0) LOCI(10,11)=0
+        DO 101 I=1,10
+        TEMP=INT(RAN(C1)*10.+2.)
+        IF(LOCI(I,TEMP)==0) TEMP=2
+        IF(LOCI(I,TEMP)==0) GOTO 101
+        TEMP=LOCI(I,TEMP)
+        MOVE=PATH(Z6,TEMP,DIR,OK,FLAG)
+        NPATH=NPATH+1
+        IF(FLAG==0) GOTO 101
+        IFO=2
+        ILA=TEMP
+        GOTO 400
+  101   CONTINUE
+ 
+C  LOOK FOR TT THAT IS SHORT OF ARMIES
+ 1030   IF(AR2S(Y)#0) GOTO 6000         !INELIGIBLE TO GET ON A TT
+        IA=INT(RAN(C1)*FLOAT(LIMIT(13))+1.0)
+        DO 3126 IC=IA,IA+LIMIT(13)
+        I=IC
+        IF(I>LIMIT(13)) I=I-LIMIT(13)
+        IF(S(ITT2+I)==0) GO TO 3126                     !TT DOESN'T EXIST
+        IF(H(ITT2H+I)<3) GOTO 3126                      !DAMAGED, I.E. UNSUITABLE
+        IF(IABS(CODE(ITT2+I-1500))>59999) GOTO 3126     !NOT TAKING ON ARMIES
+        IF(IDIST(Z6,S(ITT2+I))>25) GOTO 3126            !TOO FAR AWAY
+C       MOVE=PATH(Z6,S(ITT2+I),DIR,OK,FLAG)
+C       IF(FLAG==0) GOTO 3126                           !CAN'T GET TO IT
+        MOVE=MOV(Z6,S(ITT2+I))
+        IFO=3
+        ILA=I
+        CODE(ITT2+I-1500)=IFORM(CODE(ITT2+I-1500))*10000+Y
+        GOTO 400
+ 3126   CONTINUE
+ 
+C  PICK A RANDOM DIRECTION (IFO=0)
+ 6000   IF((IFO==0).AND.(ILA#0)) GOTO 200       !IF ALREADY ASSIGNED DIRECTION
+        IFO=0
+        ILA=INT(RAN(C1)*8.+1.)
+C       GOTO 200
+ 
+  200   MOVE=ILA
+        I1=ICORR(MOVE-DIR*3)
+        IF(A(1,Z6+IARROW(I1))#'+') MOVE=I1
+        GOTO 400
+  201   MOVE=PATH(Z6,ILA,DIR,OK,FLAG)
+        NPATH=NPATH+1
+        IF(FLAG==0) GOTO 6000
+        GOTO 400
+  202   MOVE=PATH(Z6,S(ILA+ITT2),DIR,OK,FLAG)
+        NPATH=NPATH+1
+ 
+  400   DO 3137 I=0,7*DIR,DIR
+        MOVE1=ICORR(MOVE+I)
+        LOC=Z6+IARROW(MOVE1)
+        AC=A(1,LOC)
+        IF(AC#'5') GOTO 3132
+        IF(AR2S(Y)#0) GOTO 3137
+        NUMARM=0
+        DO 4148 IZ=ITT2+1,LIMIT(13)+ITT2
+ 4148   IF(S(IZ)==LOC) GOTO 4149
+ 4149   IF(H(ITT2H-ITT2+IZ)<3) GOTO 3137
+        DO 4177 IY=IAR2+1,LIMIT(9)+IAR2
+        IF(S(IY)==LOC) NUMARM=NUMARM+1
+ 4177   IF(NUMARM>=6) GOTO 3137
+        GOTO 3143
+ 3132   IF((AC=='+').AND.(ORDER(LOC)==0)) GOTO 3143
+ 3137   CONTINUE
+        MOVE1=0
+ 
+ 3143   IF(IFO==0) ILA=IABS(MOVE1)
+        CODE(Y)=IFO*10000+ILA
+        IB=CODE(Y)
+        IF(CODER==1.) TYPE 3136, IB
+ 3136   FORMAT(1X,7I,3X)
+        Z6=Z6+IARROW(MOVE1)
+ 
+        AC=A(1,Z6)
+        IF(AB#'5') GOTO 7000
+        IF(AC=='5') GOTO 3104
+        CODE(Y)=0
+        AR2S(Y)=1020
+        GOTO 7002
+ 7000   IF(D1(Z7)#'*') CALL CHANGE(Z7,D1(Z7),1)
+        IF(AC#'5') GOTO 7002
+        AR2S(Y)=100
+        GOTO 3104
+ 7002   IF(AC=='+') GOTO 3105
+        IF((AC=='X').OR.(AC=='.')) GOTO 3101
+        IF(D1(Z6)#'*') GOTO 3106
+        IF(RAN(C1)<.5) GOTO 3101
+        DO 3110 I=1,70
+ 3110   IF(TARGET(I)==Z6) TARGET(I)=0
+        DO 3113 I=1,LIMIT(9)
+ 3113   IF(CODE(I)==10000+Z6) CODE(I)=0
+        DO 3114 I=1,100
+ 3114   IF(X(I)==Z6) GOTO 3115
+ 3115   OWNER(I)=2
+        PHASE(I)=0
+        IF(((AC=='O').OR.(AR2S(Y)>0)).AND.(EDGER(Z6)<8.)) PHASE(I)=-1
+        IF(AC#'O') GOTO 3109
+        CALL CURSOR(200)
+        CALL STROUT('CITY AT ',10); CALL DECPRT(Z6)
+        CALL STROUT(' SURRENDURED TO ENEMY FORCES.   ',31)
+        CALL CHANGE(Z6,'X',1)
+        CALL SENSOR(Z6)
+        GOTO 3101
+ 3109   CALL CHANGE(Z6,'X',1)
+        GOTO 3101
+ 7001   AR2S(Y)=100
+        GOTO 3104
+ 3106   H1=1
+        IF(Z7==Z6) GOTO 3104
+ 6312   FORMAT(1H+,/,' ERROR: ATTACKED ',A1,4G,1X)
+        P=1.0
+        OWN1='1'
+        OWN2=AC
+        H2=30
+        CALL FIND(OWN2,Z6,Z8,H2)
+        CALL FGHT(Z6,H1,H2,OWN1,OWN2)
+        CALL FIND(OWN2,Z6,Z8,H2)
+        IF(H1<=0) GOTO 3101
+        CALL CHANGE(Z6,D1(Z6),1)
+        IF(A(1,Z6)=='.') GOTO 3101
+ 3105   CALL CHANGE(Z6,'1',1)
+ 3104   CALL CHAS(IAR2+Y,Z6)
+        IF(P==1.0) CALL SENSOR(Z6)
+        GOTO 3108
+ 3101   CALL CHAS(IAR2+Y,0)
+C       IF((AC=='.').OR.((AC=='X').AND.(Z6#Z7)))
+C     &TYPE 6312,AC,CODE(Y),MOVE1,Z7,Z6
+        IF(AC#'X') GOTO 6310
+        DO 6311 I=1,70
+ 6311   IF(X(I)==Z6) PHASE(I)=0
+ 6310   IF(P==1.) CALL SENSOR(Z6)
+        IF(A(1,Z6)#'O') GOTO 3118
+        CALL CURSOR(200)
+        CALL STROUT('CITY AT ',10); CALL DECPRT(Z6)
+        CALL STROUT(' REPELLED ENEMY INVASION.   ',31)
+ 3118   CODE(Y)=0
+        AR2S(Y)=0
+ 3108 CALL SONAR(Z6)
+ 3190   CONTINUE
+        LIMIT(9)=MONKEY
+        RETURN
+        END
+ 
+ 
+        INTEGER FUNCTION ARMJMP(Z6,AR2SC)
+        INCLUDE 'COMMON.EMP/NOLIST'
+ 
+C  THIS SUBROUTINE DETERMINES WHETHER OR NOT AN ARMY SHOULD GET OFF
+C  THE TROOP TRANSPORT IT IS ON. 0=NO; 1=YES
+ 
+        ARMJMP=0
+        DO 100 I=1,8
+  100   IF(D1(Z6+IARROW(I))#'.') GOTO 101       !NOT ALL SEA SURROUNDINGS
+        RETURN
+ 
+  101   IF(AR2SC==0) GOTO 103                   !BEEN ON TROOP TRANSPORT
+                                                !FOR A LONG TIME
+        DO 102 I=1,8
+        LOC=Z6+IARROW(I)
+        IF(D1(LOC)=='.') GOTO 102
+        IF(ORDER(LOC)#0) GOTO 102
+        AB=A(1,LOC)
+        IF((AB=='A').OR.(AB=='F')) GOTO 103
+        IF((AB=='*').OR.(AB=='O')) GOTO 103
+        LOC=Z6+2*IARROW(I)
+        AB=A(0,LOC)
+        IF(AB==' ') GOTO 103
+  102   CONTINUE
+        RETURN                                  !DON'T JUMP
+  103   ARMJMP=1
+        RETURN                                  !JUMP
+        END
+ 
+ 
+ 
+ 
+        SUBROUTINE DIST(Z6,ILA)
+        INCLUDE 'COMMON.EMP/NOLIST'
+C  THIS SUBROUTINE SETS AR2S SO THAT THE ARMY WON'T GET
+C  OFF THE TROOP TRANSPORT PREMATURELY
+ 
+        ID=2*IDIST(Z6,ILA)+1
+        DO 6012 L=1+IAR2,LIMIT(9)+IAR2
+ 6012   IF(S(L)==Z6) AR2S(L-IAR2)=ID
+        RETURN
+        END
+ 
+ 
+        INTEGER FUNCTION PRIORITY(Z6,IFO,ILA,DIR,AC)
+        INCLUDE 'COMMON.EMP/NOLIST'
+        DIMENSION PRIOR(7)
+ 
+        CALL SET(PRIOR,7,0)
+        EXPMAX=0
+ 
+C  NOW MAKE A GUESS AS TO WHAT THE MOVE WILL BE
+        MOVE1=ILA
+        IF(IFO#0) MOVE1=MOV(Z6,ILA)
+        IF(IFO==3) MOVE1=MOV(Z6,S(ITT2+ILA))
+ 
+C  NOW SEE IF ANY PRIORITY MOVES EXIST
+        DO 100 I=0,7*DIR,DIR
+        MOVE=ICORR(MOVE1+I)
+        LOC=Z6+IARROW(MOVE)
+        IF(ORDER(LOC)#0) GOTO 100
+        AB=A(1,LOC)
+ 
+C  CHECK IF ARMY CAN ATTACK SOMETHING OVER WATER
+        GROUND=D1(LOC)
+        OK='YES'
+        IF((AC=='5').AND.(GROUND=='.')) OK='NO'
+ 
+        IF(AB=='O') PRIOR(1)=MOVE
+        IF((AB=='T').AND.(OK=='YES')) PRIOR(3)=MOVE
+        IF(AB=='*') PRIOR(2)=MOVE
+        IF(AB=='A') PRIOR(5)=MOVE
+        IF((AB=='S').AND.(OK=='YES')) PRIOR(6)=MOVE
+        IF((IFO==0).AND.(AB>='A').AND.(AB<='T').AND.(OK=='YES'))
+     & PRIOR(7)=MOVE
+ 
+        IF(GROUND#'+') GOTO 100
+        N=0
+        IF(A(0,LOC+IARROW(ICORR(MOVE-2)))==' ') N=1
+        IF(A(0,LOC+IARROW(ICORR(MOVE-1)))==' ') N=N+1
+        IF(A(0,LOC+IARROW(MOVE))==' ') N=N+1
+        IF(A(0,LOC+IARROW(ICORR(MOVE+1)))==' ') N=N+1
+        IF(A(0,LOC+IARROW(ICORR(MOVE+2)))==' ') N=N+1
+C       TYPE 478,N,EXPMAX
+ 478    FORMAT(' N:',I2,' EXPMAX:',I2)
+        IF(N<=EXPMAX) GOTO 100
+        PRIOR(4)=MOVE
+        EXPMAX=N
+  100   CONTINUE
+C       TYPE 479
+  479   FORMAT(' XXXXXXXXXXXXXXXX')
+ 
+C  NOW SELECT THE HIGHEST PRIORITY MOVE
+        DO 200 I=1,7
+  200   IF(PRIOR(I)#0) GOTO 300
+        PRIORITY=0
+        RETURN
+  300   PRIORITY=PRIOR(I)
+        RETURN
+        END
+
